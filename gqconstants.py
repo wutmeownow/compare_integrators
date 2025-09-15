@@ -1,6 +1,7 @@
 from decimal import Decimal, getcontext
 from typing import List
 import math
+import numpy as np
 
 class HighPrecisionGaussInt:
     """
@@ -178,17 +179,45 @@ class HighPrecisionGaussInt:
             sum_val += self.weight[i] * f_val
         
         return c1 * sum_val
-
-    def integ(self, f, a: float, b: float) -> Decimal:
-        """
-        Integrate function f from a to b using Gaussian quadrature
-        """
-        
-        ### complete code here ###
     
-        return 0  # integral of function f
+    def integ_trap(self, f, a: float, b: float) -> Decimal:
+        """Integrate function f from a to b using trapezoid rule"""
+        a_dec = Decimal(str(a))
+        b_dec = Decimal(str(b))
 
-    
+        sum_val = Decimal(0)
+        h = (b_dec-a_dec)/Decimal(len(self.weight) - 1) # width of trapezoid
+        # print(h)
+        x = np.array([a_dec+Decimal(i-1)*h for i in range(1, len(self.weight) + 1)])
+        # print(x)
+        for i in range(x.size-1):
+            # convert xi's to float first for function evaluation, then back to decimal
+            x_eval = float(x[i])
+            xnext_eval = float(x[i+1])
+            # print(x_eval, xnext_eval)
+            fi_eval = Decimal(str(f(x_eval)))
+            fnext_eval = Decimal(str(f(xnext_eval)))
+            sum_val += Decimal(0.5)*h*fi_eval + Decimal(0.5)*h*fnext_eval
+
+        return sum_val
+
+def neg_exp(t):
+    return np.exp(-t)
+
+def quadr(x: float):
+    return 0.9*x**2 + 1.0*x + 28.0
+
+def n_poly(coef: np.ndarray, x: float):
+    """Return n polynomial with coefficients coef. Highest order coefficients are at front"""
+    n = coef.size - 1 # order of polynomial
+    poly_sum = 0.
+    for i in range(n+1):
+        poly_sum += coef[i]*x**(n-i)
+        print(f"coef {i} * x^{n-i}")
+
+    return poly_sum
+
+
 # Example usage and testing
 if __name__ == "__main__":
     import sys
@@ -198,5 +227,11 @@ if __name__ == "__main__":
         order=int(sys.argv[1])
     print(f"Creating {order}-point Gaussian quadrature with high precision...")
     gauss_hp = HighPrecisionGaussInt(order, precision=40)
-    gauss_hp.PrintWA()
+    # gauss_hp.PrintWA()
+    
+    print(gauss_hp.integ(neg_exp, 0, 1))
+    print(gauss_hp.integ_trap(neg_exp, 0, 1))
+    # print(n_poly(np.array([2,3,4,1]), 10))
+    print(gauss_hp.integ(quadr, 0, 1))
+    print(gauss_hp.integ_trap(quadr, 0, 1))
     

@@ -15,6 +15,6 @@ int main() {
     gaussint.PrintWA();
   }
   return 0;
-  }
+}
 
   
