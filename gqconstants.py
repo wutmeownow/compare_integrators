@@ -284,7 +284,7 @@ def comp_integ(function_name, f, f_integ, a: float, b: float, n_list, g_limit) -
     axs.set_xlabel("N")
 
     # plt.show()
-    plt.savefig(f"Errors.png")
+    plt.savefig(f"BadErrors.png")
 
 
 def neg_exp(t):
@@ -306,6 +306,15 @@ def n_poly(coef: np.ndarray, x: float):
 
     return poly_sum
 
+def stupid(x):
+    return np.cos(200*x)*np.power(x,2)
+
+def stupid_func(x):
+    return ((20000.*np.power(x,2) - 1.)*np.sin(200.*x) + 200.*x*np.cos(200.*x))/4000000.
+
+def stupid_integ(a, b):
+    return stupid_func(b) - stupid_func(a)
+
 
 # Example usage and testing
 if __name__ == "__main__":
@@ -326,6 +335,8 @@ if __name__ == "__main__":
     # print(gauss_hp.integ(quadr, 0, 1))
     # print(gauss_hp.integ_trap(quadr, 0, 1))
     # print(gauss_hp.integ_simp(quadr, 0, 1))
-    n_vals = [i for i in range(2,1000,4)]
-    comp_integ("$\int e^{-t}$", neg_exp, neg_exp_integ, 0., 1., n_vals, g_limit=60)
+    n_vals = [i for i in range(2,10000,4)]
+    # comp_integ("$\int e^{-t}$", neg_exp, neg_exp_integ, 0., 1., n_vals, g_limit=60)
+
+    comp_integ("$\int cos(200x)*x^{2}$", stupid, stupid_integ, 0., 1., n_vals, g_limit=60)
     
