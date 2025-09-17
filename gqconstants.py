@@ -2,6 +2,8 @@ from decimal import Decimal, getcontext
 from typing import List
 import math
 import numpy as np
+from matplotlib import pyplot as plt
+import pandas as pd
 
 class HighPrecisionGaussInt:
     """
@@ -180,29 +182,116 @@ class HighPrecisionGaussInt:
         
         return c1 * sum_val
     
-    def integ_trap(self, f, a: float, b: float) -> Decimal:
-        """Integrate function f from a to b using trapezoid rule"""
-        a_dec = Decimal(str(a))
-        b_dec = Decimal(str(b))
+def integ_trap(n, f, a: float, b: float) -> Decimal:
+    """Integrate function f from a to b using trapezoid rule"""
+    a_dec = Decimal(str(a))
+    b_dec = Decimal(str(b))
 
-        sum_val = Decimal(0)
-        h = (b_dec-a_dec)/Decimal(len(self.weight) - 1) # width of trapezoid
-        # print(h)
-        x = np.array([a_dec+Decimal(i-1)*h for i in range(1, len(self.weight) + 1)])
-        # print(x)
-        for i in range(x.size-1):
-            # convert xi's to float first for function evaluation, then back to decimal
-            x_eval = float(x[i])
-            xnext_eval = float(x[i+1])
-            # print(x_eval, xnext_eval)
-            fi_eval = Decimal(str(f(x_eval)))
-            fnext_eval = Decimal(str(f(xnext_eval)))
-            sum_val += Decimal(0.5)*h*fi_eval + Decimal(0.5)*h*fnext_eval
+    h = (b_dec-a_dec)/Decimal(n - 1) # width of trapezoid
+    # print(h)
+    x_dec = np.array([a_dec+Decimal(i-1)*h for i in range(1, n + 1)])
+    f_dec = np.array([Decimal(str(f(float(y)))) for y in x_dec])
+    # print(x)
 
-        return sum_val
+    # set up the alternating weights for simpson's rule
+    w = np.array([h for i in range(1, n+1)])
+    w[0] = h/Decimal(2)
+    w[-1] = h/Decimal(2)
+
+    return np.sum(f_dec * w)
+    
+def integ_simp(n, f, a: float, b: float) -> Decimal:
+    """"Integrate function f from a to b using Simpson's rule"""
+    # N must be odd - if I get an even number, add 1 to it instead
+    n = oddify_n(n)
+
+
+    n_interval = n-1 # number of intervals to add up
+    a_dec = Decimal(str(a))
+    b_dec = Decimal(str(b))
+
+    sum_val = Decimal(0)
+    h_dec = (b_dec-a_dec)/Decimal(n_interval) # width of interval
+    h = float(h_dec)
+
+    x_dec = np.array([a_dec+Decimal(i-1)*h_dec for i in range(1, n + 1)]) # points at which to take value of function
+    f_dec = np.array([Decimal(str(f(float(y)))) for y in x_dec])
+
+    # set up the alternating weights for simpson's rule
+    w = np.array([h_dec/Decimal(3/2) for i in range(1, n+1)])
+    w[0] = h_dec/Decimal(3)
+    w[-1] = h_dec/Decimal(3)
+    w[1:-1:2] = h_dec/Decimal(3/4)
+    # print(w)
+
+    return np.sum(f_dec*w)
+
+def oddify_n(n):
+    """if n is even, return it plus one"""
+    if n % 2==0:
+        return n+1
+    return n
+    
+
+def comp_integ(function_name, f, f_integ, a: float, b: float, n_list, g_limit) -> Decimal:
+    """"Compare the three integration methods for a function f and choices for number of points n_list"""
+    print("Make classes")
+    # make list of class objects for doing gauss integral
+    n_gauss = [HighPrecisionGaussInt(n, precision=40) for n in n_list if n<g_limit]
+    print("Done")
+
+    # initialize arrays to fill with results for each method
+    trap_res = np.array([Decimal(0) for i in range(len(n_list))])
+    simp_res = np.array([Decimal(0) for i in range(len(n_list))])
+    gauss_res = np.array([Decimal(0) for i in range(len(n_gauss))])
+
+    # calculate actual integral value
+    act_res = Decimal(str(f_integ(a, b)))
+
+    # print(n_list)
+
+    # go through and do calculations for each n (or up to g_limit for gaussian integral)
+    for i in range(len(n_list)):
+        # print(f"n={n_list[i]}")
+        if n_list[i] < g_limit:
+            gauss_res[i] = n_gauss[i].integ(f, a, b)
+        trap_res[i] = integ_trap(n_list[i], f, a, b)
+        simp_res[i] = integ_simp(n_list[i], f, a, b)
+        
+    # calculate relative errors for each method
+    trap_err = np.abs((trap_res-act_res)/act_res)
+    simp_err = np.abs((simp_res-act_res)/act_res)
+    gauss_err = np.abs((gauss_res-act_res)/act_res)
+
+    # Because I chose to add 1 to each even n for the simpson method, I need to make an array with the appropriate values to plot against
+    simp_n = [oddify_n(n) for n in n_list]
+
+    # have concatenated list of n's for gaussian method
+    gauss_n = [n for n in n_list if n<g_limit]
+
+    # make figure
+    fig, axs = plt.subplots(1, 1)
+    fig.set_size_inches(12,10)
+
+    # plot all three on the same axis versus h logscale
+    axs.plot(n_list, trap_err, label="Trap. Method")
+    axs.plot(simp_n, simp_err, label="Simpson's Method")
+    axs.plot(gauss_n, gauss_err, label="Gauss. Method")
+    axs.legend()
+    axs.set_xscale('log')
+    axs.set_yscale('log')
+    axs.set_ylabel(f"Error {function_name}")
+    axs.set_xlabel("N")
+
+    # plt.show()
+    plt.savefig(f"Errors.png")
+
 
 def neg_exp(t):
     return np.exp(-t)
+
+def neg_exp_integ(a, b):
+    return np.exp(-a) - np.exp(-b)
 
 def quadr(x: float):
     return 0.9*x**2 + 1.0*x + 28.0
@@ -221,17 +310,22 @@ def n_poly(coef: np.ndarray, x: float):
 # Example usage and testing
 if __name__ == "__main__":
     import sys
-    # Create high precision integrator
-    if len(sys.argv)==1: order=10
-    else:
-        order=int(sys.argv[1])
-    print(f"Creating {order}-point Gaussian quadrature with high precision...")
-    gauss_hp = HighPrecisionGaussInt(order, precision=40)
+    # # Create high precision integrator
+    # if len(sys.argv)==1: order=10
+    # else:
+    #     order=int(sys.argv[1])
+    # print(f"Creating {order}-point Gaussian quadrature with high precision...")
+    # gauss_hp = HighPrecisionGaussInt(order, precision=40)
     # gauss_hp.PrintWA()
     
-    print(gauss_hp.integ(neg_exp, 0, 1))
-    print(gauss_hp.integ_trap(neg_exp, 0, 1))
-    # print(n_poly(np.array([2,3,4,1]), 10))
-    print(gauss_hp.integ(quadr, 0, 1))
-    print(gauss_hp.integ_trap(quadr, 0, 1))
+    # print(gauss_hp.integ(neg_exp, 0, 1))
+    # print(gauss_hp.integ_trap(neg_exp, 0, 1))
+    # print(gauss_hp.integ_simp(neg_exp, 0, 1))
+
+    # # print(n_poly(np.array([2,3,4,1]), 10))
+    # print(gauss_hp.integ(quadr, 0, 1))
+    # print(gauss_hp.integ_trap(quadr, 0, 1))
+    # print(gauss_hp.integ_simp(quadr, 0, 1))
+    n_vals = [i for i in range(2,1000,4)]
+    comp_integ("$\int e^{-t}$", neg_exp, neg_exp_integ, 0., 1., n_vals, g_limit=60)
     
